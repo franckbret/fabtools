@@ -30,7 +30,7 @@ def halt_and_destroy():
     Halt and destoy virtual machine
     """
     with lcd(os.path.dirname(__file__)):
-        if os.path.exists('Vagrantfile'):
+        if os.path.exists(os.path.join(env['lcwd'], 'Vagrantfile')):
             local('vagrant halt')
             if version() >= (0, 9, 99):
                 local('vagrant destroy -f')
@@ -50,7 +50,8 @@ def base_boxes():
     if boxes is not None:
         return boxes.split()
     else:
-        res = local('vagrant box list', capture=True)
+        with settings(warn_only=True):
+            res = local('vagrant box list', capture=True)
         if res.failed:
             return []
         else:
@@ -75,9 +76,6 @@ class VagrantTestSuite(unittest.BaseTestSuite):
         """
         Run the test suite on all the virtual machines
         """
-        # Clean up
-        halt_and_destroy()
-
         for base_box in self.base_boxes:
 
             # Start a virtual machine using this base box
@@ -112,6 +110,9 @@ class VagrantTestSuite(unittest.BaseTestSuite):
             # Create a fresh vagrant config file
             local('rm -f Vagrantfile')
             local('vagrant init %s' % self.current_box)
+
+            # Clean up
+            halt_and_destroy()
 
             # Spin up the box
             # (retry as it sometimes fails for no good reason)
@@ -167,6 +168,11 @@ class VagrantTestCase(unittest.TestCase):
     Test case with vagrant support
     """
 
+    def __init__(self, name, callable):
+        super(VagrantTestCase, self).__init__()
+        self._name = name
+        self._callable = callable
+
     def run(self, result=None):
         """
         Run the test case within a Fabric context manager
@@ -174,15 +180,5 @@ class VagrantTestCase(unittest.TestCase):
         with self._suite.settings():
             unittest.TestCase.run(self, result)
 
-
-class VagrantFunctionTestCase(unittest.FunctionTestCase):
-    """
-    Function test case with vagrant support
-    """
-
-    def run(self, result=None):
-        """
-        Run the test case within a Fabric context manager
-        """
-        with self._suite.settings():
-            unittest.FunctionTestCase.run(self, result)
+    def runTest(self):
+        self._callable()

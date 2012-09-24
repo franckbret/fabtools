@@ -8,7 +8,7 @@ from fabric.colors import red
 from fabtools.files import upload_template, is_link
 from fabtools.require.deb import package
 from fabtools.require.files import template_file
-from fabtools.require.service import started
+from fabtools.require.service import started, restarted
 
 def server():
     """
@@ -17,7 +17,6 @@ def server():
     ::
 
         from fabtools import require
-
         require.apache2.server()
     """
     package('apache2')
@@ -90,16 +89,41 @@ def site(server_name, template_contents=None, template_source=None, enabled=True
         if is_link(link_filename):
             sudo("rm %(link_filename)s" % locals())
 
-    sudo("apachectl -k graceful")
+    restarted('apache2')
 
 def activate_module(module):
-    """ Activate an Apache module
+    """ 
+    Activate an Apache module.
+    Be sure to restart apache for changes to take effect.
+
+    ::
+    
+        from fabtools.require.service import restarted
+
+        apache_modules_activate = ['suexec', 'actions', 'headers', 'include', 'deflate', 'mem_cache', 'rewrite', 'env']
+
+        for module in apache_modules_activate:
+            fabtools.require.apache.activate_module(module) 
+
+        restarted('apache2')
+
     """
     with settings(hide('running', 'warnings'), warn_only=True):
         sudo("a2enmod %s" % module)
 
 def deactivate_module(module):
-    """ Desactivate an Apache module
+    """ 
+    Desactivate an Apache module, be sure to restart apache for changes to take effect.
+    ::
+    
+        from fabtools.require.service import restarted
+
+        apache_modules_deactivate = ['autoindex', 'cgi', 'default']
+
+        for module in apache_modules_deactivate:
+            fabtools.require.apache.deactivate_module(module) 
+
+        restarted('apache2')
     """
     with settings(hide('running', 'warnings'), warn_only=True):
         sudo("a2dismod %s" % module)
